@@ -2,3 +2,7 @@
 path = "/test"
 function = "hello"
 
+[[edge_functions]]
+path = "/watch"
+function = "watch"
+
