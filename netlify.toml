@@ -1,6 +1,6 @@
 [[edge_functions]]
-path = "/test"
-function = "hello"
+path = "/telegram"
+function = "telegram"
 
 [[edge_functions]]
 path = "/watch"
