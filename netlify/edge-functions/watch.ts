@@ -1,4 +1,4 @@
-import { pre, sendMessage, sendMessageArg } from "/ts/commons.ts"
+import { pre, sendMessage, sendMessageArg } from "./ts/commons.ts"
 
 export default async (req: Request) => {
   const data = await req.json()
