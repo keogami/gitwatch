@@ -1,5 +1,5 @@
 export function isDevelopment(): boolean {
-	return Deno.env.get("NETLIFY_DEV") === true
+	return Boolean(Deno.env.get("NETLIFY_DEV")) === true
 }
 
 export enum DevelopmentVar {
