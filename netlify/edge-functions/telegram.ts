@@ -1,7 +1,6 @@
 import { generateCtx, pre, sendMessage, sendMessageArg } from "./ts/commons.ts"
 
 export default async (req: Request) => {
-  console.log(Deno.env.toObject())
   const data = await req.json()
 
   const chatID = data.message.chat.id

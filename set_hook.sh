@@ -13,9 +13,10 @@ done
 NAME=$(cat SITE_NAME)
 TOKEN=$(cat TELEGRAM_TOKEN)
 
-URL="https://$NAME.netlify.app/telegram"
+HOST="$NAME.netlify.app"
 if test -n "$DEV"; then
-  URL="https://$NAME-$DEV.netlify.live/telegram"
+  HOST="$NAME-$DEV.netlify.live"
 fi
 
-curl -F url="$URL" "https://api.telegram.org/bot$TOKEN/setWebhook"
+curl --header "Content-Type: application/json" --request POST  --data "{\"HOST_NAME\": \"$HOST\"}" "https://$HOST/setDevelopmentVar"
+curl -F url="https://$HOST/telegram" "https://api.telegram.org/bot$TOKEN/setWebhook"

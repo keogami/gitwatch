@@ -6,3 +6,6 @@ function = "telegram"
 path = "/watch"
 function = "watch"
 
+[[edge_functions]]
+path = "/setDevelopmentVar"
+function = "setDevelopmentVar"
