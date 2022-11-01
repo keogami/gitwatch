@@ -1,3 +1,6 @@
+console.log(Deno.env.toObject())
+export const SITE_HOST = Deno.env.get("SITE_HOST")
+
 const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_TOKEN")
 const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`
 const methodUrl = (name: String) => `${TELEGRAM_URL}/${name}`
