@@ -16,7 +16,7 @@ TOKEN=$(cat TELEGRAM_TOKEN)
 HOST="$NAME.netlify.app"
 if test -n "$DEV"; then
   HOST="$NAME-$DEV.netlify.live"
+  curl --header "Content-Type: application/json" --request POST  --data "{\"HOST_NAME\": \"$HOST\"}" "https://$HOST/setDevelopmentVar"
 fi
 
-curl --header "Content-Type: application/json" --request POST  --data "{\"HOST_NAME\": \"$HOST\"}" "https://$HOST/setDevelopmentVar"
 curl -F url="https://$HOST/telegram" "https://api.telegram.org/bot$TOKEN/setWebhook"
