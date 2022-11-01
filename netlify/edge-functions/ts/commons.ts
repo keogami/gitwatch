@@ -1,7 +1,9 @@
+import devvar, { DevelopmentVar } from "./development.ts"
+
 const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_TOKEN")
 const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`
-const methodUrl = (name: String) => `${TELEGRAM_URL}/${name}`
 
+const methodUrl = (name: String) => `${TELEGRAM_URL}/${name}`
 export const call = (method: string) => (body: FormData) => fetch(
   methodUrl(method), {
     method: "POST",
@@ -19,7 +21,7 @@ export const sendMessageArg = (chatID: Number, text: string) => {
 }
 
 export const generateCtx = (chatID: Number, url: URL) => {
-  return `https://${url.host}/watch?ctx=${chatID}`
+  return `https://${ devvar.get(DevelopmentVar.Hostname) ?? url.host }/watch?ctx=${chatID}`
 }
 
 export const pre = (text: string) => `\`${text}\``
