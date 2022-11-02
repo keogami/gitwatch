@@ -25,3 +25,6 @@ export const generateCtx = (chatID: Number, url: URL) => {
 }
 
 export const pre = (text: string) => `\`${text}\``
+
+export const escape = (text: string) =>
+  text.replace(/[\-\*\[\]\(\)\`\~\>\#\+\_\=\|\{\}\,\.\!]/g, "\\$&")

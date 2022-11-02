@@ -12,6 +12,11 @@ export default async (req: Request) => {
   const message = sendMessageArg(Number(chatID), response)
   message.set("parse_mode", "MarkdownV2")
   
-  sendMessage(message)
+  console.log(message.get("text"))
+  
+  const res = await sendMessage(message)
+  if (res.status !== 200) {
+    console.debug(await res.json())
+  }
   return new Response("")
 }
