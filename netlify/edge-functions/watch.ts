@@ -11,6 +11,7 @@ export default async (req: Request) => {
   
   const message = sendMessageArg(Number(chatID), response)
   message.set("parse_mode", "MarkdownV2")
+  message.set("disable_web_page_preview", true)
   
   console.log(message.get("text"))
   

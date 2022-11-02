@@ -9,14 +9,19 @@ const defaultStringer = ({
 sender: @${login}`
 
 const pushStringer = (payload: PushEvent) => {
+	const { repository, head_commit: head, sender } = payload
 	const ref = (payload.ref as string).split("/")[2] // just the name
 	const action = (payload.created === true) ? "created"
 							 : (payload.deleted === true) ? "deleted"
 							 : (payload.forced === true)  ? "forced pushed to"
 	             : "pushed to"
-	const { repository, head_commit: head, sender } = payload
-  const summary = `[@${sender.login}](${sender.html_url}) ${action} ${escape(repository.full_name)}\\:${ref}`
-	const commit = `\\([${head.id.slice(0, 7)}](${head.url})\\) ${head.message}`
+	const target = `${escape(repository.full_name)}\\:${ref}`
+  const summary =
+`[@${sender.login}](${sender.html_url}) ${action}
+${pre(target)}`
+	const commit =
+`\\([${head.id.slice(0, 7)}](${head.url})\\)
+${head.message}`
 	
 	return summary + "\n\n" + commit
 }
