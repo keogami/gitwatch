@@ -15,6 +15,7 @@ TOKEN=$(cat TELEGRAM_TOKEN)
 
 HOST="$NAME.netlify.app"
 if test -n "$DEV"; then
+  TOKEN=$(cat TELEGRAM_DEV_TOKEN)
   HOST="$NAME-$DEV.netlify.live"
   curl --header "Content-Type: application/json" --request POST  --data "{\"HOST_NAME\": \"$HOST\"}" "https://$HOST/setDevelopmentVar"
 fi
