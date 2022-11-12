@@ -1,30 +1,14 @@
-import devvar, { DevelopmentVar } from "./development.ts"
+import devvar, { DevelopmentVar, isDevelopment } from "./development.ts";
 
-const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_TOKEN")
-const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`
+export const TELEGRAM_TOKEN = isDevelopment()
+  ? Deno.env.get("TELEGRAM_DEV_TOKEN")
+  : Deno.env.get("TELEGRAM_TOKEN");
 
-const methodUrl = (name: String) => `${TELEGRAM_URL}/${name}`
-export const call = (method: string) => (body: FormData) => fetch(
-  methodUrl(method), {
-    method: "POST",
-    body: body,
-  }
-)
+const SITE_HOST = Deno.env.get("SITE_HOST")
 
-export const sendMessage = call("sendMessage")
-
-export const sendMessageArg = (chatID: Number, text: string) => {
-  const fd = new FormData()
-  fd.set("chat_id", chatID.toString())
-  fd.set("text", text)
-  return fd
+if (typeof SITE_HOST === "undefined") {
+  throw new Error("SITE_HOST is not found")
 }
 
-export const generateCtx = (chatID: Number, url: URL) => {
-  return `https://${ devvar.get(DevelopmentVar.Hostname) ?? url.host }/watch?ctx=${chatID}`
-}
-
-export const pre = (text: string) => `\`${text}\``
-
-export const escape = (text: string) =>
-  text.replace(/[\-\*\[\]\(\)\`\~\>\#\+\_\=\|\{\}\,\.\!]/g, "\\$&")
+export const getSiteHost = (): string =>
+  devvar.get(DevelopmentVar.Hostname) ?? SITE_HOST

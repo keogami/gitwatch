@@ -1,16 +1,25 @@
-import { generateCtx, pre, sendMessage, sendMessageArg } from "./ts/commons.ts"
+import { Bot, webhookCallback } from "https://deno.land/x/grammy/mod.ts"
+import { getSiteHost, TELEGRAM_TOKEN } from "./ts/commons.ts"
+
+if (typeof TELEGRAM_TOKEN === "undefined") {
+  throw new Error("telegram token not found")
+}
+
+const bot = new Bot(TELEGRAM_TOKEN)
+
+bot.command("gitwatch", ctx => {
+  const id = ctx.chat.id
+  const host = getSiteHost()
+  
+  ctx.reply(`Hook: <pre>https://${host}/watch?ctx=${id}</pre>`, {
+    parse_mode: "HTML"
+  })
+})
+
+bot.command("start", ctx => ctx.reply("Welcome to gitwatch"))
+
+const callback = webhookCallback(bot, "std/http")
 
 export default async (req: Request) => {
-  const data = await req.json()
-  if (data?.message?.entities?.[0]?.type === "bot_command") {
-    // currently only handles /gitwatch so im not gonna bother creating a command MUXer
-    const chatID = data.message.chat.id
-    const ctx = generateCtx(chatID, new URL(req.url))
-    const message = sendMessageArg(chatID, `Hook: ${pre(ctx)}`)
-    message.set("parse_mode", "MarkdownV2")
-
-    sendMessage(message)
-  }
-
-  return new Response("mau")
+  return await callback(req)
 }
