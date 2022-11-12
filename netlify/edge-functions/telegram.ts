@@ -17,6 +17,13 @@ bot.command("gitwatch", ctx => {
 })
 
 bot.command("start", ctx => ctx.reply("Welcome to gitwatch"))
+bot.command("ping", ctx => ctx.reply("Pong!"))
+
+await bot.api.setMyCommands([
+  // { command: "ping", description: "Ping the bot" }, // disabled because it clashes with ping commands of other bots
+  { command: "start", description: "Start the bot" },
+  { command: "gitwatch", description: "Watch a github repo or organization" },
+])
 
 const callback = webhookCallback(bot, "std/http")
 
