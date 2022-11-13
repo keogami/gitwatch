@@ -1,4 +1,4 @@
-import { PushEvent } from "https://cdn.skypack.dev/@octokit/webhooks-types?dts";
+import { Commit, PushEvent } from "https://cdn.skypack.dev/@octokit/webhooks-types?dts";
 
 const defaultStringer = ({
   repository: { full_name },
@@ -11,12 +11,13 @@ const link = (text: string, url: string): string => {
   return `<a href="${url}">${text}</a>`
 }
 
-const pushStringer = (payload: PushEvent) => {
-  const { repository, head_commit: head, sender } = payload;
+const printCommitList = (list: Commit[]): string =>
+  list.map(commit =>
+    `<code>- </code>${link(commit.id.slice(0, 7), commit.url)}` + "\n" + `<code>| </code>${commit.message}`
+  ).join("\n\n")
 
-  if (head === null) {
-    throw new Error("head_commit is not set on push event")
-  }
+const pushStringer = (payload: PushEvent) => {
+  const { repository, sender } = payload;
 
   const ref = (payload.ref as string).split("/")[2]; // just the name
   const action = (payload.created === true)
@@ -30,9 +31,8 @@ const pushStringer = (payload: PushEvent) => {
   const by = link(`@${sender.login}`, sender.html_url)
   const summary = `${by} ${action}
 <pre>${target}</pre>`;
-  const commitID = `(${link(head.id.slice(0, 7), head.url)})`
-  const commit = `${commitID}
-${head.message}`;
+  
+  const commit = printCommitList(payload.commits)
 
   return summary + "\n\n" + commit;
 };
