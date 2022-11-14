@@ -1,8 +1,6 @@
-import devvar, { DevelopmentVar, isDevelopment } from "./development.ts";
+import devvar, { DevelopmentVar } from "./development.ts";
 
-export const TELEGRAM_TOKEN = isDevelopment()
-  ? Deno.env.get("TELEGRAM_DEV_TOKEN")
-  : Deno.env.get("TELEGRAM_TOKEN");
+export const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_TOKEN");
 
 const SITE_HOST = Deno.env.get("SITE_HOST")
 
