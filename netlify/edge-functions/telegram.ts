@@ -1,48 +1,9 @@
 import { Bot, webhookCallback } from "https://deno.land/x/grammy/mod.ts"
-import { toHashString } from "https://deno.land/std/crypto/mod.ts" 
-import { getSiteHost, TELEGRAM_TOKEN } from "./ts/commons.ts"
-import redis, { scoped } from "./ts/redis.ts"
+import { TELEGRAM_TOKEN } from './ts/commons.ts'
+import { oauthSessions } from "./ts/oauth.ts"
 
 if (typeof TELEGRAM_TOKEN === "undefined") {
   throw new Error("telegram token not found")
-}
-
-const oauthSessionCtxMapKey = scoped("oauth")
-
-interface OauthData {
-  uid: string, // id of the user
-  cid: string, // id of the chat
-}
-
-const oauthSessions = {
-  async generateContext(uid: string): Promise<string> {
-    const data = new TextEncoder().encode(uid)
-    return toHashString(await crypto.subtle.digest("sha-1", data), "hex")
-  },
-
-  async has(uid: string): Promise<boolean> {
-    const ctx = await this.generateContext(uid)
-    const res = await redis.hexists(oauthSessionCtxMapKey, ctx)
-    return res === 1
-  },
-
-  async create(data: OauthData): Promise<string> {
-    const ctx = await this.generateContext(data.uid)
-    const res = await redis.hset(oauthSessionCtxMapKey, ctx, JSON.stringify(data))
-
-    if (res !== 1) {
-      throw new Error("Redis: couldn't create oauth session")
-    }
-
-    return ctx
-  },
-
-  async retreive(ctx: string): Promise<OauthData | null> {
-    const data = await redis.hget(oauthSessionCtxMapKey, ctx)
-
-    if (data === null) return null
-    return JSON.parse(data) as OauthData
-  }
 }
 
 const bot = new Bot(TELEGRAM_TOKEN)
