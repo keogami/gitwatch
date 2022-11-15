@@ -20,7 +20,7 @@ const generateOauthURL = (ctx: string, state: string): URL => {
   return url
 }
 
-const oauthMenu = new Menu("oauth") 
+export const oauthMenu = new Menu("oauth") 
 
 oauthMenu.dynamic(async (ctx, range) => {
   const uid = ctx.msg?.from?.id?.toString()
