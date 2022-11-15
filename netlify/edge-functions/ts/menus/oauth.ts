@@ -1,6 +1,6 @@
 import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
 import { getSiteHost } from "../commons.ts"
-import { oauthSessions } from "../oauth.ts"
+import { generateContext, oauthSessions } from "../oauth.ts"
 
 const GitHubAuthURL = "https://github.com/login/oauth/authorize"
 const GitHubClientID = Deno.env.get("GITHUB_CLIENT_ID")
@@ -37,8 +37,13 @@ oauthMenu.dynamic(async (ctx, range) => {
   }
   
   const state = crypto.randomUUID()
+  
+  const oauthCtx = await generateContext(uid)
 
-  const oauthCtx = await oauthSessions.create({ cid, uid, state })
+  const res = await oauthSessions.set(oauthCtx, { cid, uid, state })
+  if (!res) {
+    throw new Error("Couldn't set the context in the db")
+  }
   
   const authUrl = generateOauthURL(oauthCtx, state)
 

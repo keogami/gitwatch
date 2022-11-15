@@ -1,7 +1,7 @@
 import { Bot, webhookCallback } from "https://deno.land/x/grammy/mod.ts"
 import { TELEGRAM_TOKEN } from './ts/commons.ts'
 import { oauthMenu } from "./ts/menus/oauth.ts"
-import { oauthSessions } from "./ts/oauth.ts"
+import { generateContext, oauthSessions } from "./ts/oauth.ts"
 
 if (typeof TELEGRAM_TOKEN === "undefined") {
   throw new Error("telegram token not found")
@@ -19,8 +19,9 @@ bot.command("gitwatch", async ctx => {
     return
   }
 
-  if (await oauthSessions.has(uid.toString())) {
-    const data = await oauthSessions.retreive(await oauthSessions.generateContext(uid))
+  const oauthCtx = await generateContext(uid)
+  if (await oauthSessions.has(oauthCtx)) {
+    const data = await oauthSessions.get(oauthCtx)
     ctx.reply(`${data?.cid} found`)
     ctx.reply("Please authenticate with the previous menu")
     return
