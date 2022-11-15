@@ -1,5 +1,6 @@
 import { Bot, webhookCallback } from "https://deno.land/x/grammy/mod.ts"
 import { TELEGRAM_TOKEN } from './ts/commons.ts'
+import { oauthMenu } from "./ts/menus/oauth.ts"
 import { oauthSessions } from "./ts/oauth.ts"
 
 if (typeof TELEGRAM_TOKEN === "undefined") {
@@ -8,12 +9,13 @@ if (typeof TELEGRAM_TOKEN === "undefined") {
 
 const bot = new Bot(TELEGRAM_TOKEN)
 
+bot.use(oauthMenu)
+
 bot.command("gitwatch", async ctx => {
   const uid = ctx.msg.from?.id?.toString()
-  const cid = ctx.chat.id.toString()
-
+  
   if (typeof uid === "undefined") {
-    ctx.reply("gitwatch should only be called by users")
+    ctx.reply("/gitwatch should only be invoked by users.")
     return
   }
 
@@ -24,10 +26,10 @@ bot.command("gitwatch", async ctx => {
     return
   }
   
-  const oauthCtx = await oauthSessions.create({ cid, uid })
 
-  ctx.reply(`oauth: <pre>${oauthCtx}</pre>`, {
-    parse_mode: "HTML"
+  await ctx.reply(`Please log into your account to choose your repository.`, {
+    parse_mode: "HTML",
+    reply_markup: oauthMenu,
   })
 })
 

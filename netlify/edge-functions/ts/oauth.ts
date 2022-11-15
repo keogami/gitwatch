@@ -6,6 +6,7 @@ const OauthSessionCtxMapKey = scoped("oauth")
 export interface OauthData {
   uid: string, // id of the user
   cid: string, // id of the chat
+	state: string, // a random string for security
 }
 
 export const oauthSessions = {
