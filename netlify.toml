@@ -9,3 +9,7 @@ function = "watch"
 [[edge_functions]]
 path = "/setDevelopmentVar"
 function = "setDevelopmentVar"
+
+[[edge_functions]]
+path = "/oauthCallback"
+function = "oauthCallback"
