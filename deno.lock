@@ -1,8 +1,11 @@
 {
   "version": "2",
   "remote": {
+    "https://cdn.skypack.dev/-/@octokit/webhooks-types@v6.7.0-m3fQwZNWEkfSmixWbiNL/dist=es2019,mode=imports/optimized/@octokit/webhooks-types.js": "5d71afac9a0636b438aff7daa03026bc53a42b37fb59459792dee56119b9ae05",
+    "https://cdn.skypack.dev/-/@octokit/webhooks-types@v6.7.0-m3fQwZNWEkfSmixWbiNL/dist=es2019,mode=types/schema.d.ts": "f6387da7f912e8fe9887b79d01350466ff89505e20061c416c7ccda7e9ed3a09",
     "https://cdn.skypack.dev/-/debug@v4.3.4-o4liVvMlOnQWbLSYZMXw/dist=es2019,mode=imports/optimized/debug.js": "671100993996e39b501301a87000607916d4d2d9f8fc8e9c5200ae5ba64a1389",
     "https://cdn.skypack.dev/-/ms@v2.1.2-giBDZ1IA5lmQ3ZXaa87V/dist=es2019,mode=imports/optimized/ms.js": "fd88e2d51900437011f1ad232f3393ce97db1b87a7844b3c58dd6d65562c1276",
+    "https://cdn.skypack.dev/@octokit/webhooks-types?dts": "cf222e308a3f498259d8cde7d128c81151426d9e4eccc4f58439bc76923e33bf",
     "https://cdn.skypack.dev/debug@4.3.4": "7b1d010cc930f71b940ba5941da055bc181115229e29de7214bdb4425c68ea76",
     "https://deno.land/std@0.114.0/_util/assert.ts": "2f868145a042a11d5ad0a3c748dcf580add8a0dbc0e876eaa0026303a5488f58",
     "https://deno.land/std@0.114.0/datetime/formatter.ts": "bf7befcd2c55c3060be199ebc10e40f9c33aef6141c20f7c781d03beef25a49e",
