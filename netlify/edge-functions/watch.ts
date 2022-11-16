@@ -1,8 +1,5 @@
+import bot from "./ts/bot.ts"
 import eventToString from "./ts/events.ts"
-import { Bot } from "https://deno.land/x/grammy/mod.ts"
-import { TELEGRAM_TOKEN } from "./ts/commons.ts"
-
-const bot = new Bot(TELEGRAM_TOKEN as string)
 
 export default async (req: Request) => {
   const data = await req.json()

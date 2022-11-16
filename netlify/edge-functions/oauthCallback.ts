@@ -1,13 +1,6 @@
-import { Bot } from "https://deno.land/x/grammy@v1.12.0/bot.ts"
-import { TELEGRAM_TOKEN } from "./ts/commons.ts"
+import bot from "./ts/bot.ts"
 import { oauthSessions } from "./ts/oauth.ts"
 import { RedisMap } from "./ts/redis.ts"
-
-if (typeof TELEGRAM_TOKEN === "undefined") {
-	throw new Error("Couldn't find the telegram token in the environment")
-}
-
-const bot = new Bot(TELEGRAM_TOKEN)
 
 const GitHubClientID = Deno.env.get("GITHUB_CLIENT_ID")
 const GitHubClientSecret = Deno.env.get("GITHUB_CLIENT_SECRET")
