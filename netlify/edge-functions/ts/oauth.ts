@@ -14,10 +14,4 @@ export const generateContext = async (uid: string): Promise<Context> => {
   return toHashString(await crypto.subtle.digest("sha-1", data), "hex")
 }
 
-class OauthSessions extends RedisMap<Context, OauthData> {
-  constructor() {
-    super("oauth")
-  }
-}
-
-export const oauthSessions = new OauthSessions()
+export const oauthSessions = new RedisMap<Context, OauthData>("oauth")
