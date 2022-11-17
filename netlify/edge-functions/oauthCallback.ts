@@ -31,10 +31,7 @@ export default async (req: Request) => {
 	
 	const token = await exchangeCode(code)
 	
-	const inserted = await tokenStore.set(oauthData.uid, token)
-	if (!inserted) {
-		throw new Error("couldn't store the token in the token store")
-	}
+	await tokenStore.set(oauthData.uid, token)
 	
 	bot.api.sendMessage(oauthData.cid, "Authentication was successful. UID: " + oauthData.uid)
   return new Response()
