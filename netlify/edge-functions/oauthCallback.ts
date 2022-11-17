@@ -1,9 +1,7 @@
 import bot from "./ts/bot.ts"
-import { exchangeCode } from "./ts/github.ts"
+import { exchangeCode, tokenStore } from "./ts/github.ts"
 import { oauthSessions } from "./ts/oauth.ts"
-import { RedisMap } from "./ts/redis.ts"
 
-const tokenStore = new RedisMap("token")
 
 export default async (req: Request) => {
 	const params = new URL(req.url).searchParams

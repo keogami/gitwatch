@@ -1,4 +1,5 @@
 import { getSiteHost } from "./commons.ts"
+import { RedisMap } from "./redis.ts"
 
 const GitHubClientSecret = Deno.env.get("GITHUB_CLIENT_SECRET")
 const GitHubClientID = Deno.env.get("GITHUB_CLIENT_ID")
@@ -8,6 +9,8 @@ const GitHubScopes = ["write:repo_hook", "admin:org_hook"].join(" ")
 if (typeof GitHubClientID === "undefined" || typeof GitHubClientSecret === "undefined") {
 	throw new Error("GitHub credentials not found in the environment")
 }
+
+export const tokenStore = new RedisMap("token")
 
 export const exchangeCode = async (code: string): Promise<string> => {
 	const body = new FormData()
