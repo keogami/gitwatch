@@ -1,6 +1,7 @@
 import { oauthMenu } from "./menus/oauth.ts"
-import { generateContext, oauthSessions } from "./oauth.ts"
 import { Bot, webhookCallback } from "https://deno.land/x/grammy@v1.12.0/mod.ts"
+import { tokenStore } from "./github.ts";
+import { Octokit } from "https://cdn.skypack.dev/octokit"
 
 const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_TOKEN");
 
@@ -22,19 +23,30 @@ bot.command("gitwatch", async ctx => {
     return
   }
 
-  const oauthCtx = await generateContext(uid)
-  if (await oauthSessions.has(oauthCtx)) {
-    const data = await oauthSessions.get(oauthCtx)
-    ctx.reply(`${data?.cid} found`)
-    ctx.reply("Please authenticate with the previous menu")
+  if (!await tokenStore.has(uid)) {
+    ctx.reply(`Please log into your account to choose your repository.`, {
+      parse_mode: "HTML",
+      reply_markup: oauthMenu,
+    })
     return
   }
   
-
-  await ctx.reply(`Please log into your account to choose your repository.`, {
-    parse_mode: "HTML",
-    reply_markup: oauthMenu,
+  ctx.reply("Please choose the repository or the organization to /gitwatch")
+  
+  const octokit = new Octokit({
+    userAgent: "gitwatch-client",
+    auth: await tokenStore.get(uid) as string
   })
+  
+  const {
+    viewer: { _login }
+  } = await octokit.graphql(`
+    query {
+      viewer {
+        login
+      }
+    }  
+  `)
 })
 
 bot.command("start", ctx => ctx.reply("Welcome to gitwatch"))
