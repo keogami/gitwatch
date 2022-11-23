@@ -1,11 +1,13 @@
 import { oauthMenu } from "./menus/oauth.ts"
 import {
   Bot,
+  Context,
   webhookCallback,
 } from "https://deno.land/x/grammy@v1.12.0/mod.ts"
 import { tokenStore } from "./github.ts"
 import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
 import { Some } from "https://deno.land/x/monads@v0.5.10/mod.ts"
+import { Octokit } from "https://cdn.skypack.dev/octokit"
 
 const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_TOKEN")
 
@@ -17,51 +19,86 @@ const bot = new Bot(TELEGRAM_TOKEN)
 export default bot
 export const callback = webhookCallback(bot, "std/http")
 
+interface Repo {
+  name: string
+  owner: string
+}
+
 interface RepoList {
-  names: string[]
+  repos: Repo[]
   hasPrev: boolean
   hasNext: boolean
 }
 
-const getRepoList = (page: number): RepoList => {
-  switch (page) {
-    case 1:
-      return {
-        names: ["blah", "blah2", "blah3"],
-        hasPrev: false,
-        hasNext: true,
-      }
-    case 2:
-      return {
-        names: ["blah4", "blah5", "blah6"],
-        hasPrev: true,
-        hasNext: true,
-      }
-    case 3:
-      return {
-        names: ["blah7", "blah8", "blah9"],
-        hasPrev: true,
-        hasNext: true,
-      }
-  }
-  return { names: ["blah10", "blah11"], hasPrev: true, hasNext: false }
-}
+const REPO_PER_PAGE = 5
 
-const REPO_PER_PAGE = 3
+const getRepoList = async (
+  ctx: Context,
+  page: number,
+): Promise<RepoList | null> => {
+  const id = ctx.from?.id
+  if (typeof id === "undefined") return null
+
+  const token = await tokenStore.get(id.toString())
+  if (token === null) return null
+
+  const client = new Octokit({
+    userAgent: "gitwatch",
+    auth: token,
+  })
+
+  const resp = await client.graphql(
+    `query ($first:Int!) { 
+      viewer {
+        repositories(first:$first, orderBy:{
+          field:UPDATED_AT, direction:DESC
+        }) {
+          pageInfo {
+            hasNextPage
+          }
+          nodes {
+            nameWithOwner
+          }
+        }
+      }
+    }`,
+    {
+      first: page * REPO_PER_PAGE,
+    },
+  )
+
+  const { viewer: { repositories: { nodes, pageInfo: hasNextPage } } } = resp
+
+  const pageInfo = {
+    hasPrev: page > 1,
+    hasNext: hasNextPage,
+  }
+
+  const last = ((l) => l === 0 ? 5 : l)(nodes.length % REPO_PER_PAGE)
+
+  const repos: Repo[] = (nodes as { nameWithOwner: string }[]).slice(-last)
+    .map((it) => it.nameWithOwner.split("/")).map(([owner, name]) => ({
+      owner,
+      name,
+    }))
+
+  return { ...pageInfo, repos }
+}
 
 interface MenuPayload {
   name: string
+  owner: string
   page: number
   load: boolean
 }
 
 const parseMenuPayload = (payload: string): MenuPayload => {
-  const [name, page, load] = payload.split(":")
-  return { name, page: Number(page), load: Number(load) === 1 }
+  const [owner, name, page, load] = payload.split(":")
+  return { owner, name, page: Number(page), load: Number(load) === 1 }
 }
 
 const packPayload = (payload: MenuPayload): string =>
-  `${payload.name}:${payload.page}:${payload.load ? 1 : 0}`
+  [payload.owner, payload.name, payload.page, payload.load ? 1 : 0].join(":")
 
 const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
   if (arr.length >= length) return arr
@@ -72,19 +109,27 @@ const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
   return [...arr, ...remArr.fill(fill)]
 }
 
-const repoMenu = new Menu("repo").dynamic((ctx, range) => {
+const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
   const _payload = ctx.match?.toString()
   const payload = Some(_payload === "" ? undefined : _payload).map(
     parseMenuPayload,
   ).unwrapOr({
+    owner: "default",
     name: "default",
     page: 1,
     load: true,
   })
 
-  const repoList = getRepoList(payload.page)
+  const repoList = await getRepoList(ctx, payload.page)
+  if (repoList === null) {
+    ctx.reply("Couldn't fetch your repository list.")
+    return
+  }
+
   const names: [string, MenuPayload][] = padWith(
-    repoList.names.map((it) => [it, { ...payload, name: it }]),
+    repoList.repos.map((
+      {name, owner},
+    ) => [`${owner}/${name}`, { ...payload, name, owner }]),
     REPO_PER_PAGE,
     ["-", {
       ...payload,
