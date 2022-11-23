@@ -22,10 +22,7 @@ oauthMenu.dynamic(async (ctx, range) => {
   
   const oauthCtx = await generateContext(uid)
 
-  const res = await oauthSessions.set(oauthCtx, { cid, uid, state })
-  if (!res) {
-    throw new Error("Couldn't set the context in the db")
-  }
+  oauthSessions.set(oauthCtx, { cid, uid, state })
   
   const authUrl = generateOauthURL(oauthCtx, state)
 
