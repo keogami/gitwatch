@@ -94,6 +94,16 @@ const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
   return [...arr, ...remArr.fill(fill)]
 }
 
+const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
+  range
+  .text({
+    text: "No", payload: ctx.match as string,
+  }, ctx => ctx.menu.back())
+  .text({
+    text: "Yes", payload: ctx.match as string
+  }, ctx => ctx.reply("Okay"))
+})
+
 export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
   const _payload = ctx.match?.toString()
   const payload = Some(_payload === "" ? undefined : _payload).map(
@@ -125,9 +135,11 @@ export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
   names.map(([name, payload]) =>
     range.text(
       { text: name, payload: packPayload(payload) },
-      (ctx) => {
-        ctx.reply(ctx.match ?? "dunno")
-        ctx.menu.update()
+      async ctx => {
+        const {name, owner} = parseMenuPayload(ctx.match as string)
+        await ctx.editMessageText(`/gitwatch events in ${owner}/${name}?`, {
+          reply_markup: confirmMenu
+        })
       },
     ).row()
   )
@@ -160,3 +172,5 @@ export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
     },
   )
 })
+
+gitwatchMenu.register(confirmMenu)
