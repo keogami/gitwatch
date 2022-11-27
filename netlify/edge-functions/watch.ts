@@ -1,13 +1,17 @@
 import bot from "./ts/bot.ts"
 import eventToString from "./ts/events.ts"
+import { webhookContextStore } from "./ts/github.ts"
 
 export default async (req: Request) => {
   const data = await req.json()
-  const chatID = (new URL(req.url)).searchParams.get("ctx")
+  const ctx = (new URL(req.url)).searchParams.get("ctx")
   
-  if (chatID === null) {
-    throw new Error("ctx was not found attached to the hook")
+  const config = await webhookContextStore.get(ctx as string)
+  if (config === null) {
+    return
   }
+  
+  const chatID = config.cid
   
   const event = req.headers.get("X-GitHub-Event") as string
   

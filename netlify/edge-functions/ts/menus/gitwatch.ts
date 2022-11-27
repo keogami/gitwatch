@@ -2,7 +2,7 @@ import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
 import { Some } from "https://deno.land/x/monads@v0.5.10/mod.ts"
 import { Octokit } from "https://cdn.skypack.dev/octokit"
 import { Context } from "https://deno.land/x/grammy@v1.12.0/context.ts"
-import { tokenStore } from "../github.ts"
+import { setupWebhook, tokenStore } from "../github.ts"
 
 interface Repo {
   name: string
@@ -96,12 +96,33 @@ const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
 
 const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
   range
-  .text({
-    text: "No", payload: ctx.match as string,
-  }, ctx => ctx.menu.back())
-  .text({
-    text: "Yes", payload: ctx.match as string
-  }, ctx => ctx.reply("Okay"))
+    .text({
+      text: "No",
+      payload: ctx.match as string,
+    }, (ctx) => ctx.menu.back())
+    .text({
+      text: "Yes",
+      payload: ctx.match as string,
+    }, async ctx => {
+      const { name, owner } = parseMenuPayload(ctx.match as string)
+      ctx.answerCallbackQuery("Setting up the webhooks.")
+      const result = await setupWebhook({
+        uid: ctx.from.id.toString(),
+        cid: ctx.chat?.id?.toString() ?? "unknown", //FIXME: might be null
+        name, owner
+      })
+      
+      result.match({
+        ok: () => {
+          ctx.menu.close()
+          ctx.reply("/gitwatch is watching your repo.")
+        },
+        err: e => {
+          ctx.menu.back()
+          ctx.reply(e.message)
+        }
+      })
+    })
 })
 
 export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
@@ -123,7 +144,7 @@ export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
 
   const names: [string, MenuPayload][] = padWith(
     repoList.repos.map((
-      {name, owner},
+      { name, owner },
     ) => [`${owner}/${name}`, { ...payload, name, owner }]),
     REPO_PER_PAGE,
     ["-", {
@@ -135,10 +156,10 @@ export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
   names.map(([name, payload]) =>
     range.text(
       { text: name, payload: packPayload(payload) },
-      async ctx => {
-        const {name, owner} = parseMenuPayload(ctx.match as string)
+      async (ctx) => {
+        const { name, owner } = parseMenuPayload(ctx.match as string)
         await ctx.editMessageText(`/gitwatch events in ${owner}/${name}?`, {
-          reply_markup: confirmMenu
+          reply_markup: confirmMenu,
         })
       },
     ).row()
