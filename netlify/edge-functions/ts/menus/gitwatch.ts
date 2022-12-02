@@ -186,6 +186,8 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
         : ctx.answerCallbackQuery("This is the first page.")
     },
   )
+  
+  range.text(payload.page.toString(), () => {})
 
   range.text(
     { text: ">", payload: packPayload(nextPayload) },
