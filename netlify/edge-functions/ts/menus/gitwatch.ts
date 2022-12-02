@@ -125,7 +125,11 @@ const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
     })
 })
 
-export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
+export const gitwatchMenu = new Menu("gitwatch")
+  .text("Organzation", ctx => ctx.reply("org"))
+  .text("Respository", ctx => ctx.menu.nav("repo"))
+
+const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
   const _payload = ctx.match?.toString()
   const payload = Some(_payload === "" ? undefined : _payload).map(
     parseMenuPayload,
@@ -192,6 +196,8 @@ export const gitwatchMenu = new Menu("repo").dynamic(async (ctx, range) => {
         : ctx.answerCallbackQuery("This is the last page.")
     },
   )
-})
+}).row()
+.back("back")
 
-gitwatchMenu.register(confirmMenu)
+gitwatchMenu.register(repoMenu)
+repoMenu.register(confirmMenu)
