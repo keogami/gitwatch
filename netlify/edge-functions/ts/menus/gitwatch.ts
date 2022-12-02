@@ -1,8 +1,13 @@
 import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
-import { Some } from "https://deno.land/x/monads@v0.5.10/mod.ts"
-import { Octokit } from "https://cdn.skypack.dev/octokit"
+import {
+  isNone,
+  None,
+  Option,
+  Some,
+} from "https://deno.land/x/monads@v0.5.10/mod.ts"
 import { Context } from "https://deno.land/x/grammy@v1.12.0/context.ts"
 import { setupWebhook, tokenStore } from "../github.ts"
+import { Octokit } from "https://cdn.skypack.dev/-/@octokit/core@v4.0.5-DCTGyLHthf6deTvrXINL/dist=es2019,mode=imports/optimized/@octokit/core.js"
 
 interface Repo {
   name: string
@@ -13,6 +18,69 @@ interface RepoList {
   repos: Repo[]
   hasPrev: boolean
   hasNext: boolean
+}
+
+const getOrgCount = async (client: Octokit): Promise<number> => {
+  const {
+    viewer: { organizations: { totalCount } },
+  } = await client.graphql(`
+      query {
+        viewer {
+          organizations(first:1) {
+            totalCount
+          }
+        }
+      }
+    `)
+  return totalCount
+}
+
+const getOrgList = async (
+  client: Octokit,
+  count: number,
+): Promise<string[]> => {
+  const {
+    viewer: {
+      login,
+      organizations: { nodes },
+    },
+  } = await client.graphql(
+    `
+      query ($count:Int) { 
+        viewer { 
+          login
+          organizations(first:$count) {
+            nodes { login }
+          }
+        }
+      }
+    `,
+    { count },
+  )
+
+  return [
+    login,
+    ...nodes.map((it: { login: string }) => it.login),
+  ]
+}
+
+const getAllOrgs = async (client: Octokit) => {
+  const count = await getOrgCount(client)
+  return await getOrgList(client, count)
+}
+
+const createClientFor = async (
+  uid: string,
+): Promise<Option<Octokit>> => {
+  const token = await tokenStore.get(uid.toString())
+  if (token === null) return None
+
+  const client = new Octokit({
+    userAgent: "gitwatch",
+    auth: token,
+  })
+
+  return Some(client)
 }
 
 const REPO_PER_PAGE = 5
@@ -94,6 +162,35 @@ const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
   return [...arr, ...remArr.fill(fill)]
 }
 
+export const gitwatchMenu = new Menu("gitwatch")
+  .submenu("Organization", "org")
+  .submenu("Repository", "repo")
+
+const orgMenu = new Menu("org").dynamic(async (ctx, range) => {
+  const uid = ctx.from?.id
+  if (typeof uid === "undefined") {
+    range.text("None").back("back")
+    return
+  }
+
+  const client = await createClientFor(uid.toString())
+  if (isNone(client)) {
+    range.submenu("Login", "oauth")
+    return
+  }
+
+  const orgs = await getAllOrgs(client.unwrap())
+
+  orgs.forEach((it) => {
+    range.text({
+      text: it,
+      payload: it,
+    }, ctx => ctx.reply(ctx.match?.toString() ?? "blah"))
+    .row()
+  })
+})
+  .back("back")
+
 const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
   range
     .text({
@@ -103,31 +200,28 @@ const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
     .text({
       text: "Yes",
       payload: ctx.match as string,
-    }, async ctx => {
+    }, async (ctx) => {
       const { name, owner } = parseMenuPayload(ctx.match as string)
       ctx.answerCallbackQuery("Setting up the webhooks.")
       const result = await setupWebhook({
         uid: ctx.from.id.toString(),
         cid: ctx.chat?.id?.toString() ?? "unknown", //FIXME: might be null
-        name, owner
+        name,
+        owner,
       })
-      
+
       result.match({
         ok: () => {
           ctx.menu.close()
           ctx.reply("/gitwatch is watching your repo.")
         },
-        err: e => {
+        err: (e) => {
           ctx.menu.back()
           ctx.reply(e.message)
-        }
+        },
       })
     })
 })
-
-export const gitwatchMenu = new Menu("gitwatch")
-  .text("Organzation", ctx => ctx.reply("org"))
-  .text("Respository", ctx => ctx.menu.nav("repo"))
 
 const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
   const _payload = ctx.match?.toString()
@@ -186,7 +280,7 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
         : ctx.answerCallbackQuery("This is the first page.")
     },
   )
-  
+
   range.text(payload.page.toString(), () => {})
 
   range.text(
@@ -199,7 +293,8 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
     },
   )
 }).row()
-.back("back")
+  .back("back")
 
 gitwatchMenu.register(repoMenu)
+gitwatchMenu.register(orgMenu)
 repoMenu.register(confirmMenu)
