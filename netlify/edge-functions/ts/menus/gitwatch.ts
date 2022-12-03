@@ -138,20 +138,20 @@ const getRepoList = async (
   return { ...pageInfo, repos }
 }
 
-interface MenuPayload {
+interface RepoPayload {
   name: string
   owner: string
   page: number
   load: boolean
 }
 
-const parseMenuPayload = (payload: string): MenuPayload => {
-  const [owner, name, page, load] = payload.split(":")
+const parseRepoPayload = (payload: string): RepoPayload => {
+  const [_, owner, name, page, load] = payload.split(":")
   return { owner, name, page: Number(page), load: Number(load) === 1 }
 }
 
-const packPayload = (payload: MenuPayload): string =>
-  [payload.owner, payload.name, payload.page, payload.load ? 1 : 0].join(":")
+const packRepoPayload = (payload: RepoPayload): string =>
+  ["r", payload.owner, payload.name, payload.page, payload.load ? 1 : 0].join(":")
 
 const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
   if (arr.length >= length) return arr
@@ -164,18 +164,20 @@ const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
 
 export const gitwatchMenu = new Menu("gitwatch")
   .submenu("Organization", "org")
-  .submenu("Repository", "repo")
+  .submenu("Repository", "org-repo")
 
 interface OrgPayload {
   org: string
 }
-const packOrgPayload = (p: OrgPayload): string => p.org
+const packOrgPayload = (p: OrgPayload): string => `o:${p.org}`
+const isOrgPayload = (str: string): boolean => (/^o\:/).test(str)
 const parseOrgPayload = (str: string): OrgPayload => {
-  return { org: str }
+  const [_, org] = str.split(":")
+  return { org }
 }
 
-const orgMenuFactory = (to: string) =>
-  new Menu("org").dynamic(async (ctx, range) => {
+const orgMenuFactory = (name: string, to: string) =>
+  new Menu(name).dynamic(async (ctx, range) => {
     const uid = ctx.from?.id
     if (typeof uid === "undefined") {
       range.text("None").back("back")
@@ -198,7 +200,7 @@ const orgMenuFactory = (to: string) =>
     })
   }).back("back")
 
-const orgMenu = orgMenuFactory("org-confirm")
+const orgMenu = orgMenuFactory("org", "org-confirm")
 const orgConfirmMenu = new Menu("org-confirm").dynamic((ctx, range) => {
   range
     .back({
@@ -213,6 +215,8 @@ const orgConfirmMenu = new Menu("org-confirm").dynamic((ctx, range) => {
     })
 })
 
+const orgRepoMenu = orgMenuFactory("org-repo", "repo")
+
 const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
   range
     .text({
@@ -223,7 +227,7 @@ const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
       text: "Yes",
       payload: ctx.match as string,
     }, async (ctx) => {
-      const { name, owner } = parseMenuPayload(ctx.match as string)
+      const { name, owner } = parseRepoPayload(ctx.match as string)
       ctx.answerCallbackQuery("Setting up the webhooks.")
       const result = await setupWebhook({
         uid: ctx.from.id.toString(),
@@ -246,15 +250,13 @@ const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
 })
 
 const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
-  const _payload = ctx.match?.toString()
-  const payload = Some(_payload === "" ? undefined : _payload).map(
-    parseMenuPayload,
-  ).unwrapOr({
-    owner: "default",
-    name: "default",
-    page: 1,
-    load: true,
-  })
+  const _payload = ctx.match?.toString() as string // guaranteed to be set by the previous menu
+  const payload = (isOrgPayload(_payload) ? (str: string): RepoPayload => { // im probably going to hell
+    const { org } = parseOrgPayload(str)
+    return {
+      name: "default", owner: org, load: true, page: 1,
+    }
+  } : parseRepoPayload)(_payload)
 
   const repoList = await getRepoList(ctx, payload.page)
   if (repoList === null) {
@@ -262,7 +264,7 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
     return
   }
 
-  const names: [string, MenuPayload][] = padWith(
+  const names: [string, RepoPayload][] = padWith(
     repoList.repos.map((
       { name, owner },
     ) => [`${owner}/${name}`, { ...payload, name, owner }]),
@@ -275,9 +277,9 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
 
   names.map(([name, payload]) =>
     range.text(
-      { text: name, payload: packPayload(payload) },
+      { text: name, payload: packRepoPayload(payload) },
       async (ctx) => {
-        const { name, owner } = parseMenuPayload(ctx.match as string)
+        const { name, owner } = parseRepoPayload(ctx.match as string)
         await ctx.editMessageText(`/gitwatch events in ${owner}/${name}?`, {
           reply_markup: confirmMenu,
         })
@@ -294,9 +296,9 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
     : { ...payload, load: false }
 
   range.text(
-    { text: "<", payload: packPayload(prevPayload) },
+    { text: "<", payload: packRepoPayload(prevPayload) },
     (ctx) => {
-      const payload = parseMenuPayload(ctx.match as string)
+      const payload = parseRepoPayload(ctx.match as string)
       payload.load
         ? ctx.menu.update()
         : ctx.answerCallbackQuery("This is the first page.")
@@ -306,18 +308,26 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
   range.text(payload.page.toString(), () => {})
 
   range.text(
-    { text: ">", payload: packPayload(nextPayload) },
+    { text: ">", payload: packRepoPayload(nextPayload) },
     (ctx) => {
-      const payload = parseMenuPayload(ctx.match as string)
+      const payload = parseRepoPayload(ctx.match as string)
       payload.load
         ? ctx.menu.update()
         : ctx.answerCallbackQuery("This is the last page.")
     },
   )
-}).row()
-  .back("back")
+  
+  range.row().back({
+    text: "back",
+    payload: packOrgPayload({
+      org: payload.owner
+    })
+  })
 
-gitwatchMenu.register(repoMenu)
+})
+
+gitwatchMenu.register(orgRepoMenu)
 gitwatchMenu.register(orgMenu)
+orgRepoMenu.register(repoMenu)
 orgMenu.register(orgConfirmMenu)
 repoMenu.register(confirmMenu)
