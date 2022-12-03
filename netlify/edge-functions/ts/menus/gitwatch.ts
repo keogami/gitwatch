@@ -88,6 +88,7 @@ const REPO_PER_PAGE = 5
 const getRepoList = async (
   ctx: Context,
   page: number,
+  login: string,
 ): Promise<RepoList | null> => {
   const id = ctx.from?.id
   if (typeof id === "undefined") return null
@@ -101,8 +102,8 @@ const getRepoList = async (
   })
 
   const resp = await client.graphql(
-    `query ($first:Int!) { 
-      viewer {
+    `query ($first:Int!, $login:String!) { 
+      repositoryOwner(login:$login) {
         repositories(first:$first, orderBy:{
           field:UPDATED_AT, direction:DESC
         }) {
@@ -117,10 +118,11 @@ const getRepoList = async (
     }`,
     {
       first: page * REPO_PER_PAGE,
+      login
     },
   )
 
-  const { viewer: { repositories: { nodes, pageInfo: hasNextPage } } } = resp
+  const { repositoryOwner: { repositories: { nodes, pageInfo: hasNextPage } } } = resp
 
   const pageInfo = {
     hasPrev: page > 1,
@@ -258,7 +260,7 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
     }
   } : parseRepoPayload)(_payload)
 
-  const repoList = await getRepoList(ctx, payload.page)
+  const repoList = await getRepoList(ctx, payload.page, payload.owner)
   if (repoList === null) {
     ctx.reply("Couldn't fetch your repository list.")
     return
