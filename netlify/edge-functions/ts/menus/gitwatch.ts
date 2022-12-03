@@ -145,15 +145,16 @@ interface RepoPayload {
   owner: string
   page: number
   load: boolean
+  uid: string
 }
 
 const parseRepoPayload = (payload: string): RepoPayload => {
-  const [_, owner, name, page, load] = payload.split(":")
-  return { owner, name, page: Number(page), load: Number(load) === 1 }
+  const [_, owner, name, page, uid, load] = payload.split(":")
+  return { owner, name, page: Number(page), uid, load: Number(load) === 1 }
 }
 
 const packRepoPayload = (payload: RepoPayload): string =>
-  ["r", payload.owner, payload.name, payload.page, payload.load ? 1 : 0].join(":")
+  ["r", payload.owner, payload.name, payload.page, payload.uid, payload.load ? 1 : 0].join(":")
 
 const padWith = <T>(arr: T[], length: number, fill: T): T[] => {
   if (arr.length >= length) return arr
@@ -170,12 +171,13 @@ export const gitwatchMenu = new Menu("gitwatch")
 
 interface OrgPayload {
   org: string
+  uid: string
 }
-const packOrgPayload = (p: OrgPayload): string => `o:${p.org}`
+const packOrgPayload = (p: OrgPayload): string => `o:${p.org}:${p.uid}`
 const isOrgPayload = (str: string): boolean => (/^o\:/).test(str)
 const parseOrgPayload = (str: string): OrgPayload => {
-  const [_, org] = str.split(":")
-  return { org }
+  const [_, org, uid] = str.split(":")
+  return { org, uid }
 }
 
 const orgMenuFactory = (name: string, to: string) =>
@@ -197,7 +199,7 @@ const orgMenuFactory = (name: string, to: string) =>
     orgs.forEach((it) => {
       range.submenu({
         text: it,
-        payload: packOrgPayload({ org: it }),
+        payload: packOrgPayload({ org: it, uid: uid.toString() }),
       }, to).row()
     })
   }).back("back")
@@ -213,6 +215,12 @@ const orgConfirmMenu = new Menu("org-confirm").dynamic((ctx, range) => {
       text: "Yes",
       payload: ctx.match as string,
     }, async ctx => {
+      const member = await ctx.getChatMember(ctx.from.id)
+      if (member.status !== "administrator" && member.status !== "creator") {
+        ctx.reply("Only an admin can perform this action.")
+        return
+      }
+
       const { org } = parseOrgPayload(ctx.match as string)
       ctx.answerCallbackQuery("Setting up the webhooks.")
       const result = await setupWebhook({
@@ -246,10 +254,16 @@ const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
       text: "Yes",
       payload: ctx.match as string,
     }, async (ctx) => {
-      const { name, owner } = parseRepoPayload(ctx.match as string)
+      const member = await ctx.getChatMember(ctx.from.id)
+      if (member.status !== "administrator" && member.status !== "creator") {
+        ctx.reply("Only an admin can perform this action.")
+        return
+      }
+
+      const { name, owner, uid } = parseRepoPayload(ctx.match as string)
       ctx.answerCallbackQuery("Setting up the webhooks.")
       const result = await setupWebhook({
-        uid: ctx.from.id.toString(),
+        uid: uid.toString(),
         cid: ctx.chat?.id?.toString() ?? "unknown", //FIXME: might be null
         name,
         owner,
@@ -271,9 +285,10 @@ const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
 const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
   const _payload = ctx.match?.toString() as string // guaranteed to be set by the previous menu
   const payload = (isOrgPayload(_payload) ? (str: string): RepoPayload => { // im probably going to hell
-    const { org } = parseOrgPayload(str)
+    const { org, uid } = parseOrgPayload(str)
     return {
       name: "default", owner: org, load: true, page: 1,
+      uid 
     }
   } : parseRepoPayload)(_payload)
 
@@ -339,7 +354,8 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
   range.row().back({
     text: "back",
     payload: packOrgPayload({
-      org: payload.owner
+      org: payload.owner,
+      uid: payload.uid
     })
   })
 
