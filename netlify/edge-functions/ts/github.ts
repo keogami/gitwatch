@@ -59,12 +59,22 @@ export const generateOauthURL = (ctx: string, state: string): URL => {
   return url
 }
 
-interface SetupWebhookOptions {
+interface SetupRepoWebhookOptions {
   name: string
   owner: string
   uid: string
   cid: string
 }
+
+interface SetupOrgWebhookOptions {
+  org: string
+  uid: string
+  cid: string
+}
+
+type SetupWebhookOptions
+  = SetupRepoWebhookOptions
+  | SetupOrgWebhookOptions
 
 export type WebhookContext =
   Pick<SetupWebhookOptions, "uid" | "cid">
@@ -77,7 +87,7 @@ export const webhookContextStore =
 export const setupWebhook = async (
   options: SetupWebhookOptions,
 ): Promise<Result<string, Error>> => {
-  const { uid, cid, name, owner } = options
+  const { uid, cid } = options
   
   const token = await tokenStore.get(uid)
   if (token === null) {
@@ -100,13 +110,23 @@ export const setupWebhook = async (
     auth: token,
   })
   
-  const resp: Response = await client.request("POST /repos/{owner}/{repo}/hooks", {
-    owner, repo: name,
+  const endpoint = ("org" in options)
+    ? "/orgs/{org}/hooks"
+    : "/repos/{owner}/{repo}/hooks"
+  
+  const commonOptions = {
+    name: "web",
     active: true, events: ["*"], config: {
       url: `https://${getSiteHost()}/watch?ctx=${ctx}`,
       content_type: "json"
     }
-  })
+  }
+  
+  const config = ("org" in options)
+    ? { ...commonOptions, org: options.org }
+    : { ...commonOptions, repo: options.name, owner: options.owner }
+  
+  const resp: Response = await client.request(`POST ${endpoint}`, config)
   
   if (resp.status !== 201) {
     return Err(new Error("Couldn't create the webhook"))

@@ -212,8 +212,25 @@ const orgConfirmMenu = new Menu("org-confirm").dynamic((ctx, range) => {
     .text({
       text: "Yes",
       payload: ctx.match as string,
-    }, (ctx) => {
-      ctx.reply(ctx.match?.toString() ?? "dunno")
+    }, async ctx => {
+      const { org } = parseOrgPayload(ctx.match as string)
+      ctx.answerCallbackQuery("Setting up the webhooks.")
+      const result = await setupWebhook({
+        uid: ctx.from.id.toString(),
+        cid: ctx.chat?.id?.toString() ?? "unknown", //FIXME: might be null
+        org
+      })
+
+      result.match({
+        ok: () => {
+          ctx.menu.close()
+          ctx.reply("/gitwatch is watching your organization.")
+        },
+        err: (e) => {
+          ctx.menu.back()
+          ctx.reply(e.message)
+        },
+      })
     })
 })
 
