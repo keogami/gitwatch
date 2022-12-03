@@ -166,30 +166,52 @@ export const gitwatchMenu = new Menu("gitwatch")
   .submenu("Organization", "org")
   .submenu("Repository", "repo")
 
-const orgMenu = new Menu("org").dynamic(async (ctx, range) => {
-  const uid = ctx.from?.id
-  if (typeof uid === "undefined") {
-    range.text("None").back("back")
-    return
-  }
+interface OrgPayload {
+  org: string
+}
+const packOrgPayload = (p: OrgPayload): string => p.org
+const parseOrgPayload = (str: string): OrgPayload => {
+  return { org: str }
+}
 
-  const client = await createClientFor(uid.toString())
-  if (isNone(client)) {
-    range.submenu("Login", "oauth")
-    return
-  }
+const orgMenuFactory = (to: string) =>
+  new Menu("org").dynamic(async (ctx, range) => {
+    const uid = ctx.from?.id
+    if (typeof uid === "undefined") {
+      range.text("None").back("back")
+      return
+    }
 
-  const orgs = await getAllOrgs(client.unwrap())
+    const client = await createClientFor(uid.toString())
+    if (isNone(client)) {
+      range.submenu("Login", "oauth")
+      return
+    }
 
-  orgs.forEach((it) => {
-    range.text({
-      text: it,
-      payload: it,
-    }, ctx => ctx.reply(ctx.match?.toString() ?? "blah"))
-    .row()
-  })
+    const orgs = await getAllOrgs(client.unwrap())
+
+    orgs.forEach((it) => {
+      range.submenu({
+        text: it,
+        payload: packOrgPayload({ org: it }),
+      }, to).row()
+    })
+  }).back("back")
+
+const orgMenu = orgMenuFactory("org-confirm")
+const orgConfirmMenu = new Menu("org-confirm").dynamic((ctx, range) => {
+  range
+    .back({
+      text: "No",
+      payload: ctx.match as string,
+    })
+    .text({
+      text: "Yes",
+      payload: ctx.match as string,
+    }, (ctx) => {
+      ctx.reply(ctx.match?.toString() ?? "dunno")
+    })
 })
-  .back("back")
 
 const confirmMenu = new Menu("repo-confirm").dynamic((ctx, range) => {
   range
@@ -297,4 +319,5 @@ const repoMenu = new Menu("repo").dynamic(async (ctx, range) => {
 
 gitwatchMenu.register(repoMenu)
 gitwatchMenu.register(orgMenu)
+orgMenu.register(orgConfirmMenu)
 repoMenu.register(confirmMenu)
