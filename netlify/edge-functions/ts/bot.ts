@@ -3,8 +3,9 @@ import {
   Bot,
   webhookCallback,
 } from "https://deno.land/x/grammy@v1.12.0/mod.ts"
-import { tokenStore } from "./github.ts"
+import { tokenStore, webhookContextListStore } from "./github.ts"
 import { gitwatchMenu } from "./menus/gitwatch.ts"
+import { watchlistMenu } from "./menus/gitwatchlist.ts"
 
 const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_TOKEN")
 
@@ -18,6 +19,7 @@ export const callback = webhookCallback(bot, "std/http")
 
 bot.use(oauthMenu)
 bot.use(gitwatchMenu)
+bot.use(watchlistMenu)
 
 bot.command("gitwatch", async (ctx) => {
   const uid = ctx.msg.from?.id?.toString()
@@ -43,8 +45,19 @@ bot.command("gitwatch", async (ctx) => {
 bot.command("start", (ctx) => ctx.reply("Welcome to gitwatch"))
 bot.command("ping", (ctx) => ctx.reply("Pong!"))
 
+bot.command("gitwatchlist", async ctx => {
+  if (!await webhookContextListStore.has(ctx.chat.id.toString())) {
+    ctx.reply("/gitwatch is not watching anything in this chat. Run /gitwatch to get started!")
+    return
+  }
+  ctx.reply("Currently watching these repositories and organiztions.", {
+    reply_markup: watchlistMenu
+  })
+})
+
 await bot.api.setMyCommands([
   // { command: "ping", description: "Ping the bot" }, // disabled because it clashes with ping commands of other bots
   { command: "start", description: "Start the bot" },
   { command: "gitwatch", description: "Watch a github repo or organization" },
+  { command: "gitwatchlist", description: "List and manage the repo and orgs currently being watched" }
 ])
