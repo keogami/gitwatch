@@ -1,6 +1,6 @@
 import { Octokit } from "https://cdn.skypack.dev/octokit"
 import { toHashString } from "https://deno.land/std@0.164.0/crypto/util.ts"
-import { Result, Ok, Err } from "https://deno.land/x/monads@v0.5.10/index.ts"
+import { Err, Ok, Result } from "https://deno.land/x/monads@v0.5.10/index.ts"
 import { getSiteHost } from "./commons.ts"
 import { RedisMap } from "./redis.ts"
 
@@ -11,7 +11,7 @@ const GitHubScopes = [
   "write:repo_hook",
   "admin:org_hook",
   "user",
-  "read:org"
+  "read:org",
 ].join(" ")
 
 if (
@@ -72,18 +72,21 @@ interface SetupOrgWebhookOptions {
   cid: string
 }
 
-type WebhookOptions
-  = SetupRepoWebhookOptions
+type WebhookOptions =
+  | SetupRepoWebhookOptions
   | SetupOrgWebhookOptions
 
-type WebhookContext = WebhookOptions
+export type WebhookContext = WebhookOptions & {
+  hookID: string
+}
 
-export const webhookContextStore =
-  new RedisMap<string, WebhookContext>(
-    "webhook",
-  )
+export const webhookContextStore = new RedisMap<string, WebhookContext>(
+  "webhook",
+)
 
-export const webhookContextListStore = new RedisMap<string, string[]>("webhook-context-list")
+export const webhookContextListStore = new RedisMap<string, string[]>(
+  "webhook-context-list",
+)
 
 export const setupWebhook = async (
   options: WebhookOptions,
@@ -94,8 +97,11 @@ export const setupWebhook = async (
   if (token === null) {
     return Err(new Error("Couldn't find your token."))
   }
-  
-  const id = [cid, ("org" in options) ? options.org : `${options.owner}/${options.name}`].join("")
+
+  const id = [
+    cid,
+    ("org" in options) ? options.org : `${options.owner}/${options.name}`,
+  ].join("")
 
   const ctx = toHashString(
     await crypto.subtle.digest(
@@ -103,44 +109,51 @@ export const setupWebhook = async (
       new TextEncoder().encode(id),
     ),
   )
-  
+
   if (await webhookContextStore.has(ctx)) {
     return Err(new Error("/gitwatch is already watching that in this chat."))
   }
-  
-  await webhookContextStore.set(ctx, options)
-  
+
   const client = new Octokit({
     userAgent: "gitwatch",
     auth: token,
   })
-  
+
   const endpoint = ("org" in options)
     ? "/orgs/{org}/hooks"
     : "/repos/{owner}/{repo}/hooks"
-  
+
   const commonOptions = {
     name: "web",
-    active: true, events: ["*"], config: {
+    active: true,
+    events: ["*"],
+    config: {
       url: `https://${getSiteHost()}/watch?ctx=${ctx}`,
-      content_type: "json"
-    }
+      content_type: "json",
+    },
   }
-  
+
   const config = ("org" in options)
     ? { ...commonOptions, org: options.org }
     : { ...commonOptions, repo: options.name, owner: options.owner }
-  
-  const resp: Response = await client.request(`POST ${endpoint}`, config)
-  
+
+  const resp: {
+    status: number
+    data: { id: number }
+  } = await client.request(`POST ${endpoint}`, config)
+
   if (resp.status !== 201) {
     return Err(new Error("Couldn't create the webhook"))
   }
-  
+
+  const { id: hookID } = resp.data
+
+  await webhookContextStore.set(ctx, { ...options, hookID: hookID.toString() })
+
   const list = (await webhookContextListStore.get(cid.toString())) ?? []
-  
+
   list.push(ctx) // FIXME race condition right here
-  
+
   await webhookContextListStore.set(cid.toString(), list)
 
   return Ok(ctx)
