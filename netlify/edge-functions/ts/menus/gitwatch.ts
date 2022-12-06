@@ -69,7 +69,7 @@ const getAllOrgs = async (client: Octokit) => {
   return await getOrgList(client, count)
 }
 
-const createClientFor = async (
+export const createClientFor = async (
   uid: string,
 ): Promise<Option<Octokit>> => {
   const token = await tokenStore.get(uid.toString())

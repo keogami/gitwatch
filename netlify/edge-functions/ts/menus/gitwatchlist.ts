@@ -1,6 +1,8 @@
 import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
 import { webhookContextListStore, webhookContextStore } from "../github.ts"
 import { translate } from "https://deno.land/x/base@2.0.4/mod.ts"
+import { createClientFor } from "./gitwatch.ts"
+import { isNone } from "https://deno.land/x/monads@v0.5.10/index.ts"
 
 const hex = "0123456789abcedf"
 const base254 = String.fromCharCode(
@@ -20,11 +22,64 @@ const unpackHook = (str: string): string => {
   return translate(str, base254, hex)
 }
 
-const configMenu = new Menu("config").dynamic((ctx, range) => {
+const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
+  range.back({
+    text: "no", payload: ctx.match as string
+  })
+  
   range.text({
-    text: "delete", payload: ctx.match as string
-  }, ctx => ctx.reply(unpackHook(ctx.match as string)))
+    text: "yes", payload: ctx.match as string
+  }, async ctx => {
+      const hook = unpackHook(ctx.match as string) 
+      const hookCtx = await webhookContextStore.get(hook)
+      
+      if (hookCtx === null) return
+      
+      const endpoint = ("org" in hookCtx)
+        ? "/orgs/{org}/hooks/{hook_id}"
+        : "/repos/{owner}/{repo}/hooks/{hook_id}"
+      
+      const commonOption = {
+        hook_id: hookCtx.hookID
+      }
+      
+      const option = ("org" in hookCtx)
+        ? { ...commonOption, org: hookCtx.org }
+        : { ...commonOption, owner: hookCtx.owner, repo: hookCtx.name }
+      
+      console.log(option)
+      
+      const uid = ctx.from.id.toString()
+      
+      const client = await createClientFor(uid)
+      if (isNone(client)) return
+      
+      const resp = await client.unwrap().request(`DELETE ${endpoint}`, option)
+      
+      if (resp.status !== 204) {
+        ctx.reply("Couldn't delete the hook.")
+        return
+      }
+      
+      await webhookContextStore.delete(hook)
+      const cid = ctx.chat?.id?.toString() as string
+      
+      const list = await webhookContextListStore.get(cid)
+      if (list === null) return
+
+      await webhookContextListStore.set(cid, list.filter(it => it !== hook))
+      
+      ctx.reply("/gitwatch is no longer watching that.")
+      ctx.menu.close()
+    })
 })
+const configMenu = new Menu("config").dynamic((ctx, range) => {
+  range.submenu({
+    text: "unwatch", payload: ctx.match as string
+  }, "confirm-delete")
+})
+
+configMenu.register(confirmDeleteMenu)
 
 export const watchlistMenu = new Menu("watchlist").dynamic(
   async (ctx, range) => {
