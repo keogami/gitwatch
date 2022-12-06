@@ -72,38 +72,43 @@ interface SetupOrgWebhookOptions {
   cid: string
 }
 
-type SetupWebhookOptions
+type WebhookOptions
   = SetupRepoWebhookOptions
   | SetupOrgWebhookOptions
 
-export type WebhookContext =
-  Pick<SetupWebhookOptions, "uid" | "cid">
+type WebhookContext = WebhookOptions
 
 export const webhookContextStore =
   new RedisMap<string, WebhookContext>(
     "webhook",
   )
 
+export const webhookContextListStore = new RedisMap<string, string[]>("webhook-context-list")
+
 export const setupWebhook = async (
-  options: SetupWebhookOptions,
+  options: WebhookOptions,
 ): Promise<Result<string, Error>> => {
   const { uid, cid } = options
-  
+
   const token = await tokenStore.get(uid)
   if (token === null) {
     return Err(new Error("Couldn't find your token."))
   }
+  
+  const id = [cid, ("org" in options) ? options.org : `${options.owner}/${options.name}`].join("")
 
   const ctx = toHashString(
     await crypto.subtle.digest(
       "sha-1",
-      new TextEncoder().encode(uid.toString()),
+      new TextEncoder().encode(id),
     ),
   )
-         
-  await webhookContextStore.set(ctx, {
-    uid, cid,
-  })
+  
+  if (await webhookContextStore.has(ctx)) {
+    return Err(new Error("/gitwatch is already watching that in this chat."))
+  }
+  
+  await webhookContextStore.set(ctx, options)
   
   const client = new Octokit({
     userAgent: "gitwatch",
@@ -131,6 +136,12 @@ export const setupWebhook = async (
   if (resp.status !== 201) {
     return Err(new Error("Couldn't create the webhook"))
   }
+  
+  const list = (await webhookContextListStore.get(cid.toString())) ?? []
+  
+  list.push(ctx) // FIXME race condition right here
+  
+  await webhookContextListStore.set(cid.toString(), list)
 
   return Ok(ctx)
 }
