@@ -1,5 +1,5 @@
 import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
-import { webhookContextListStore, webhookContextStore } from "../github.ts"
+import { WebhookContext, webhookContextListStore, webhookContextStore } from "../github.ts"
 import { translate } from "https://deno.land/x/base@2.0.4/mod.ts"
 import { createClientFor } from "./gitwatch.ts"
 import { isNone } from "https://deno.land/x/monads@v0.5.10/index.ts"
@@ -22,6 +22,22 @@ const unpackHook = (str: string): string => {
   return translate(str, base254, hex)
 }
 
+const createHookEndpoint = (ctx: WebhookContext) => {
+  const endpoint = ("org" in ctx)
+    ? "/orgs/{org}/hooks/{hook_id}"
+    : "/repos/{owner}/{repo}/hooks/{hook_id}"
+  
+  const commonOption = {
+    hook_id: ctx.hookID
+  }
+  
+  const options = ("org" in ctx)
+    ? { ...commonOption, org: ctx.org }
+    : { ...commonOption, owner: ctx.owner, repo: ctx.name }
+
+  return { endpoint, options }
+}
+
 const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
   range.back({
     text: "no", payload: ctx.match as string
@@ -35,26 +51,14 @@ const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
       
       if (hookCtx === null) return
       
-      const endpoint = ("org" in hookCtx)
-        ? "/orgs/{org}/hooks/{hook_id}"
-        : "/repos/{owner}/{repo}/hooks/{hook_id}"
-      
-      const commonOption = {
-        hook_id: hookCtx.hookID
-      }
-      
-      const option = ("org" in hookCtx)
-        ? { ...commonOption, org: hookCtx.org }
-        : { ...commonOption, owner: hookCtx.owner, repo: hookCtx.name }
-      
-      console.log(option)
+      const { endpoint, options } = createHookEndpoint(hookCtx)
       
       const uid = ctx.from.id.toString()
       
       const client = await createClientFor(uid)
       if (isNone(client)) return
       
-      const resp = await client.unwrap().request(`DELETE ${endpoint}`, option)
+      const resp = await client.unwrap().request(`DELETE ${endpoint}`, options)
       
       if (resp.status !== 204) {
         ctx.reply("Couldn't delete the hook.")
@@ -76,7 +80,16 @@ const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
 const configMenu = new Menu("config").dynamic((ctx, range) => {
   range.submenu({
     text: "unwatch", payload: ctx.match as string
-  }, "confirm-delete")
+  }, "confirm-delete").row()
+  
+  range.submenu({
+    text: "events",
+    payload: ctx.match as string
+  }, "events").row()
+  
+  range.back({
+    text: "back", payload: ctx.match as string
+  })
 })
 
 configMenu.register(confirmDeleteMenu)
