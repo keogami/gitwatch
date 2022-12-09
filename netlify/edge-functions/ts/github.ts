@@ -14,11 +14,82 @@ const GitHubScopes = [
   "read:org",
 ].join(" ")
 
-const events = [
-  
+export const EventList = [
+  "*",
+  "branch_protection_rule",
+  "check_run",
+  "check_suite",
+  "code_scanning_alert",
+  "commit_comment",
+  "create",
+  "delete",
+  "dependabot_alert",
+  "deploy_key",
+  "deployment",
+  "deployment_status",
+  "discussion",
+  "discussion_comment",
+  "fork",
+  "github_app_authorization",
+  "gollum",
+  "installation",
+  "installation_repositories",
+  "installation_target",
+  "issue_comment",
+  "issues",
+  "label",
+  "marketplace_purchase",
+  "member",
+  "membership",
+  "merge_group",
+  "meta",
+  "milestone",
+  "org_block",
+  "organization",
+  "package",
+  "page_build",
+  "ping",
+  "project_card",
+  "project",
+  "project_column",
+  "projects_v2_item",
+  "public",
+  "pull_request",
+  "pull_request_review_comment",
+  "pull_request_review",
+  "pull_request_review_thread",
+  "push",
+  "registry_package",
+  "release",
+  "repository",
+  "repository_dispatch",
+  "repository_import",
+  "repository_vulnerability_alert",
+  "secret_scanning_alert",
+  "secret_scanning_alert_location",
+  "security_advisory",
+  "security_and_analysis",
+  "sponsorship",
+  "star",
+  "status",
+  "team_add",
+  "team",
+  "user",
+  "watch",
+  "workflow_dispatch",
+  "workflow_job",
+  "workflow_run"
 ] as const
 
-export type EventID = typeof events[number]
+export type EventID = typeof EventList[number]
+export type Events = EventID[]
+
+export const AllEvents: Events = ["*"]
+export const PushOnlyEvents: Events = ["push"]
+export const CommonEvents: Events = [
+  "push", "pull_request", "ping",
+  "issues", "create", "delete"
+]
 
 if (
   typeof GitHubClientID === "undefined" ||
