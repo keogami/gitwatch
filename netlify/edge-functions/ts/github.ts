@@ -8,7 +8,7 @@ const GitHubClientSecret = Deno.env.get("GITHUB_CLIENT_SECRET")
 const GitHubClientID = Deno.env.get("GITHUB_CLIENT_ID")
 const GitHubAuthURL = "https://github.com/login/oauth/authorize"
 const GitHubScopes = [
-  "write:repo_hook",
+  "admin:repo_hook",
   "admin:org_hook",
   "user",
   "read:org",
