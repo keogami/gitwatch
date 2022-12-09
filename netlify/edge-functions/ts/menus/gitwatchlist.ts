@@ -1,8 +1,7 @@
 import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
-import { WebhookContext, webhookContextListStore, webhookContextStore } from "../github.ts"
+import { EventID, tokenStore, WebhookContext, webhookContextListStore, webhookContextStore } from "../github.ts"
 import { translate } from "https://deno.land/x/base@2.0.4/mod.ts"
-import { createClientFor } from "./gitwatch.ts"
-import { isNone } from "https://deno.land/x/monads@v0.5.10/index.ts"
+import { Octokit } from "https://cdn.skypack.dev/octokit"
 
 const hex = "0123456789abcedf"
 const base254 = String.fromCharCode(
@@ -22,20 +21,67 @@ const unpackHook = (str: string): string => {
   return translate(str, base254, hex)
 }
 
-const createHookEndpoint = (ctx: WebhookContext) => {
-  const endpoint = ("org" in ctx)
-    ? "/orgs/{org}/hooks/{hook_id}"
-    : "/repos/{owner}/{repo}/hooks/{hook_id}"
+class Hook {
+  constructor(public ctx: WebhookContext, public token: string) {}
   
-  const commonOption = {
-    hook_id: ctx.hookID
+  private endpoint() {
+    const { ctx } = this
+    const endpoint = ("org" in ctx)
+      ? "/orgs/{org}/hooks/{hook_id}"
+      : "/repos/{owner}/{repo}/hooks/{hook_id}"
+  
+    const commonOption = {
+      hook_id: ctx.hookID
+    }
+  
+    const options = ("org" in ctx)
+      ? { ...commonOption, org: ctx.org }
+      : { ...commonOption, owner: ctx.owner, repo: ctx.name }
+
+    return { endpoint, options }
   }
   
-  const options = ("org" in ctx)
-    ? { ...commonOption, org: ctx.org }
-    : { ...commonOption, owner: ctx.owner, repo: ctx.name }
+  async delete() {
+    const { endpoint, options } = this.endpoint()
 
-  return { endpoint, options }
+    await new Octokit({
+      auth: this.token
+    }).request(`DELETE ${endpoint}`, options)
+  }
+  
+  async get() {
+    const { endpoint, options } = this.endpoint()
+    
+    return await new Octokit({
+      auth: this.token
+    }).request(`GET ${endpoint}`, options)
+  }
+  
+  async update(opts?: {
+    add_events?: EventID[]
+    remove_events?: EventID[]
+    active?: boolean
+  }) {
+    const { endpoint, options } = this.endpoint()
+    
+    return await new Octokit({
+      auth: this.token
+    }).request(`PATCH ${endpoint}`, {
+        ...options, ...opts
+      })
+  }
+  
+  async addEvents(...evs: EventID[]) {
+    return await this.update({
+      add_events: evs
+    })
+  }
+  
+  async removeEvents(...evs: EventID[]) {
+    return await this.update({
+      remove_events: evs
+    })
+  }
 }
 
 const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
@@ -48,25 +94,17 @@ const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
   }, async ctx => {
       const hook = unpackHook(ctx.match as string) 
       const hookCtx = await webhookContextStore.get(hook)
-      
       if (hookCtx === null) return
-      
-      const { endpoint, options } = createHookEndpoint(hookCtx)
-      
+
+      const { cid } = hookCtx
       const uid = ctx.from.id.toString()
       
-      const client = await createClientFor(uid)
-      if (isNone(client)) return
+      const token = await tokenStore.get(uid)
+      if (token === null) return
       
-      const resp = await client.unwrap().request(`DELETE ${endpoint}`, options)
-      
-      if (resp.status !== 204) {
-        ctx.reply("Couldn't delete the hook.")
-        return
-      }
+      await new Hook(hookCtx, token).delete()
       
       await webhookContextStore.delete(hook)
-      const cid = ctx.chat?.id?.toString() as string
       
       const list = await webhookContextListStore.get(cid)
       if (list === null) return
@@ -77,6 +115,7 @@ const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
       ctx.menu.close()
     })
 })
+
 const configMenu = new Menu("config").dynamic((ctx, range) => {
   range.submenu({
     text: "unwatch", payload: ctx.match as string

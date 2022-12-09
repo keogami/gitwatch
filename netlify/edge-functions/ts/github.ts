@@ -14,6 +14,12 @@ const GitHubScopes = [
   "read:org",
 ].join(" ")
 
+const events = [
+  
+] as const
+
+export type EventID = typeof events[number]
+
 if (
   typeof GitHubClientID === "undefined" ||
   typeof GitHubClientSecret === "undefined"
