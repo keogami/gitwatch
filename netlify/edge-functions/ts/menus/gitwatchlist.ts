@@ -82,6 +82,18 @@ class Hook {
       remove_events: evs
     })
   }
+
+  async activate() {
+    return await this.update({
+      active: true
+    })
+  }
+
+  async deactivate() {
+    return await this.update({
+      active: false
+    })
+  }
 }
 
 const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
@@ -115,6 +127,10 @@ const confirmDeleteMenu = new Menu("confirm-delete").dynamic((ctx, range) => {
       ctx.menu.close()
     })
 })
+
+const eventsMenu = new Menu("events").text({
+  text: "all", payload: ctx => ctx.match as string
+}, ctx => ctx.reply("blah"))
 
 const configMenu = new Menu("config").dynamic((ctx, range) => {
   range.submenu({
