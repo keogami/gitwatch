@@ -11,7 +11,7 @@ const base = String.fromCharCode(
       if (excludes.includes(i)) continue
       yield i
     }
-  }("/")),
+  }("/", ":")),
 )
 
 const packHook = (str: string): string => {
