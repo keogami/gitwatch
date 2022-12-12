@@ -4,7 +4,7 @@ import { translate } from "https://deno.land/x/base@2.0.4/mod.ts"
 import { Octokit } from "https://cdn.skypack.dev/octokit"
 
 const hex = "0123456789abcedf"
-const base = String.fromCharCode(
+const safeCompactBase = String.fromCharCode(
   ...(function* (...excludeStr: string[]) {
     const excludes = excludeStr.map(it => it.charCodeAt(0))
     for (let i = 0; i < 256; i++) {
@@ -15,11 +15,11 @@ const base = String.fromCharCode(
 )
 
 const packHook = (str: string): string => {
-  return translate(str, hex, base)
+  return translate(str, hex, safeCompactBase)
 }
 
 const unpackHook = (str: string): string => {
-  return translate(str, base, hex)
+  return translate(str, safeCompactBase, hex)
 }
 
 class Hook {
