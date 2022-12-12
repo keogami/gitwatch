@@ -84,9 +84,9 @@ export const EventList = [
 export type EventID = typeof EventList[number]
 export type Events = EventID[]
 
-export const AllEvents: Events = ["*"]
-export const PushOnlyEvents: Events = ["push"]
-export const CommonEvents: Events = [
+export const AllEvents: Readonly<Events> = ["*"]
+export const PushOnlyEvents: Readonly<Events> = ["push"]
+export const CommonEvents: Readonly<Events> = [
   "push", "pull_request", "ping",
   "issues", "create", "delete"
 ]
