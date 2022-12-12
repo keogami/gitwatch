@@ -1,18 +1,11 @@
 import { Menu } from "https://deno.land/x/grammy_menu@v1.1.2/menu.ts"
-import { EventID, tokenStore, WebhookContext, webhookContextListStore, webhookContextStore } from "../github.ts"
+import { tokenStore, WebhookContext, webhookContextListStore, webhookContextStore } from "../github.ts"
 import { translate } from "https://deno.land/x/base@2.0.4/mod.ts"
 import { Octokit } from "https://cdn.skypack.dev/octokit"
+import { EventID } from "../github-events.ts"
+import { safeCompactBase } from "../safe-compact-base.ts"
 
 const hex = "0123456789abcedf"
-const safeCompactBase = String.fromCharCode(
-  ...(function* (...excludeStr: string[]) {
-    const excludes = excludeStr.map(it => it.charCodeAt(0))
-    for (let i = 0; i < 256; i++) {
-      if (excludes.includes(i)) continue
-      yield i
-    }
-  }("/", ":")),
-)
 
 const packHook = (str: string): string => {
   return translate(str, hex, safeCompactBase)
