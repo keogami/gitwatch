@@ -91,6 +91,11 @@ export const CommonEvents: Events = [
   "issues", "create", "delete"
 ]
 
+export const EventIDIndex = Object.freeze(EventList.reduce(
+  (acc, it, idx) => { acc[it] = idx; return acc },
+  {} as Record<EventID, number>
+))
+
 if (
   typeof GitHubClientID === "undefined" ||
   typeof GitHubClientSecret === "undefined"
